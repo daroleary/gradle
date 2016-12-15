@@ -25,8 +25,10 @@ import groovy.xml.XmlUtil
 import groovyx.net.http.ContentType
 import groovyx.net.http.RESTClient
 import org.gradle.api.GradleException
+import org.gradle.api.internal.tasks.testing.DecoratingTestDescriptor
 import org.gradle.api.internal.tasks.testing.DefaultTestClassDescriptor
 import org.gradle.api.internal.tasks.testing.DefaultTestMethodDescriptor
+import org.gradle.api.internal.tasks.testing.DefaultTestSuiteDescriptor
 import org.gradle.api.internal.tasks.testing.results.DefaultTestResult
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
@@ -281,14 +283,19 @@ class DistributedPerformanceTest extends PerformanceTest {
     @TypeChecked(TypeCheckingMode.SKIP)
     private void fireTestListener(List<File> results) {
         def xmlFiles = results.findAll { it.name.endsWith('.xml') }
+        def rootSuite = new DefaultTestSuiteDescriptor(1, "rootSuite")
+        def workerSuite = new DecoratingTestDescriptor(new DefaultTestSuiteDescriptor(2, "workerSuite"), rootSuite)
+        def testListener = myTestListenerBroadcaster.getSource()
+        testListener.beforeSuite(rootSuite)
+        testListener.beforeSuite(workerSuite)
         xmlFiles.each {
             def testResult = new XmlSlurper().parse(it)
-            int id = 0
-            def testSuiteDescriptor = new DefaultTestClassDescriptor(id++, testResult.@name.text())
-            myTestListenerBroadcaster.getSource().beforeSuite(testSuiteDescriptor)
+            int id = 3
+            def testSuiteDescriptor = new DecoratingTestDescriptor(new DefaultTestClassDescriptor(id++, testResult.@name.text()), workerSuite)
+            testListener.beforeSuite(testSuiteDescriptor)
             testResult.testCase.each { testCase ->
-                def testCaseDescriptor = new DefaultTestMethodDescriptor(id++, testCase.@classname.text(), testCase.@name.text())
-                def source = myTestListenerBroadcaster.getSource()
+                def testCaseDescriptor =  new DecoratingTestDescriptor(new DefaultTestMethodDescriptor(id++, testCase.@classname.text(), testCase.@name.text()), testSuiteDescriptor)
+                def source = testListener
                 source.beforeTest(testCaseDescriptor)
                 def skipped = testCase.skipped
                 def failure = testCase.failure
@@ -299,8 +306,10 @@ class DistributedPerformanceTest extends PerformanceTest {
                     source.afterTest(testCaseDescriptor, new DefaultTestResult(TestResult.ResultType.SUCCESS, 0, 0, 1, 1, 0, []))
                 }
             }
-            myTestListenerBroadcaster.getSource().afterSuite(testSuiteDescriptor, new DefaultTestResult(TestResult.ResultType.SUCCESS, 0, 0, 0, 0, 0, []))
+            testListener.afterSuite(testSuiteDescriptor, new DefaultTestResult(TestResult.ResultType.SUCCESS, 0, 0, 0, 0, 0, []))
         }
+        testListener.afterSuite(workerSuite)
+        testListener.afterSuite(rootSuite)
     }
 
     @TypeChecked(TypeCheckingMode.SKIP)
