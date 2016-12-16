@@ -161,6 +161,7 @@ class DistributedPerformanceTest extends PerformanceTest {
                 new Scenario(id : parts[0], estimatedRuntime: new BigDecimal(parts[1]), templates: parts.subList(2, parts.size()))
             }
             .sort{ -it.estimatedRuntime }
+            .takeRight(10)
 
         createClient()
 
