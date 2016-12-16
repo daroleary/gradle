@@ -104,12 +104,16 @@ class DistributedPerformanceTest extends PerformanceTest {
 
     @Override
     void addTestListener(TestListener listener) {
-        myTestListeners.add(listener)
+        if (!listener.getClass().getName().startsWith('org.gradle.api.internal')) {
+            myTestListeners.add(listener)
+        }
     }
 
     @Override
     void addTestOutputListener(TestOutputListener listener) {
-        myTestOutputListeners.add(listener)
+        if (!listener.getClass().getName().startsWith('org.gradle.api.internal')) {
+            myTestOutputListeners.add(listener)
+        }
     }
 
     void setScenarioList(File scenarioList) {
@@ -309,8 +313,8 @@ class DistributedPerformanceTest extends PerformanceTest {
                 }
             }
             try {
-                def systemOut = testResult."system-out".text()
-                myTestOutputListenerBroadcaster.getSource().onOutput(testSuiteDescriptor, new DefaultTestOutputEvent(TestOutputEvent.Destination.StdOut, systemOut))
+//                def systemOut = testResult."system-out".text()
+//                myTestOutputListenerBroadcaster.getSource().onOutput(testSuiteDescriptor, new DefaultTestOutputEvent(TestOutputEvent.Destination.StdOut, systemOut))
                 def systemErr = testResult."system-err".text()
                 myTestOutputListenerBroadcaster.getSource().onOutput(testSuiteDescriptor, new DefaultTestOutputEvent(TestOutputEvent.Destination.StdErr, systemErr))
             } catch (Exception e) {
