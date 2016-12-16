@@ -28,6 +28,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.internal.tasks.testing.DecoratingTestDescriptor
 import org.gradle.api.internal.tasks.testing.DefaultTestClassDescriptor
 import org.gradle.api.internal.tasks.testing.DefaultTestMethodDescriptor
+import org.gradle.api.internal.tasks.testing.DefaultTestOutputEvent
 import org.gradle.api.internal.tasks.testing.DefaultTestSuiteDescriptor
 import org.gradle.api.internal.tasks.testing.results.DefaultTestResult
 import org.gradle.api.tasks.Input
@@ -35,6 +36,7 @@ import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.testing.TestListener
+import org.gradle.api.tasks.testing.TestOutputEvent
 import org.gradle.api.tasks.testing.TestOutputListener
 import org.gradle.api.tasks.testing.TestResult
 import org.gradle.internal.IoActions
@@ -306,10 +308,18 @@ class DistributedPerformanceTest extends PerformanceTest {
                     source.afterTest(testCaseDescriptor, new DefaultTestResult(TestResult.ResultType.SUCCESS, 0, 0, 1, 1, 0, []))
                 }
             }
+            try {
+                def systemOut = testResult."system-out".text()
+                myTestOutputListenerBroadcaster.getSource().onOutput(testSuiteDescriptor, new DefaultTestOutputEvent(TestOutputEvent.Destination.StdOut, systemOut))
+                def systemErr = testResult."system-err".text()
+                myTestOutputListenerBroadcaster.getSource().onOutput(testSuiteDescriptor, new DefaultTestOutputEvent(TestOutputEvent.Destination.StdErr, systemErr))
+            } catch (Exception e) {
+                e.printStackTrace()
+            }
             testListener.afterSuite(testSuiteDescriptor, new DefaultTestResult(TestResult.ResultType.SUCCESS, 0, 0, 0, 0, 0, []))
         }
-        testListener.afterSuite(workerSuite)
-        testListener.afterSuite(rootSuite)
+        testListener.afterSuite(workerSuite, new DefaultTestResult(TestResult.ResultType.SUCCESS, 0, 0, 0, 0, 0, []))
+        testListener.afterSuite(rootSuite, new DefaultTestResult(TestResult.ResultType.SUCCESS, 0, 0, 0, 0, 0, []))
     }
 
     @TypeChecked(TypeCheckingMode.SKIP)
